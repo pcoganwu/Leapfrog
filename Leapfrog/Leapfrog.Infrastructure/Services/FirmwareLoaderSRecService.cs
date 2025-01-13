@@ -3,8 +3,16 @@ using Leapfrog.Core.Entities;
 
 namespace Leapfrog.Infrastructure.Services
 {
-    public class FirmwareLoaderSRecService(ILoRaWANInterfaceService loRaWANInterfaceService, IFirmwareLoaderUtilsService firmwareLoaderUtilsService) : IFirmwareLoaderSRecService
+    public class FirmwareLoaderSRecService : IFirmwareLoaderSRecService
     {
+        private readonly Lazy<ILoRaWANInterfaceService> _loRaWANInterfaceService;
+        private readonly IFirmwareLoaderUtilsService _firmwareLoaderUtilsService;
+
+        public FirmwareLoaderSRecService(Lazy<ILoRaWANInterfaceService> loRaWANInterfaceService, IFirmwareLoaderUtilsService firmwareLoaderUtilsService)
+        {
+            _loRaWANInterfaceService=loRaWANInterfaceService;
+            _firmwareLoaderUtilsService=firmwareLoaderUtilsService;
+        }
         public async Task GenerateSRecFile(List<HexRecord> records, uint startAddr, uint endAddr, bool printFinalRecords)
         {
             // Create the string list we will write to our new image
@@ -28,7 +36,7 @@ namespace Leapfrog.Infrastructure.Services
                 var hexStr = string.Format("{0:X8}", record.address) + record.bytes;
 
                 // Get the bytes of the hex string
-                var bytes = firmwareLoaderUtilsService.StringToByteArray(hexStr);
+                var bytes = _firmwareLoaderUtilsService.StringToByteArray(hexStr);
 
                 // Calculate checksum
                 byte checksum = (byte)(bytes.Length + 1);
@@ -65,10 +73,10 @@ namespace Leapfrog.Infrastructure.Services
             File.WriteAllLines("leapfrog_lib.srec", imageStrings);
 
             // Convert HexRecord list to List<byte[]>
-            List<byte[]> byteRecords = records.Select(record => firmwareLoaderUtilsService.StringToByteArray(record.bytes)).ToList();
+            List<byte[]> byteRecords = records.Select(record => _firmwareLoaderUtilsService.StringToByteArray(record.bytes)).ToList();
 
             // Send records using LoRaWAN
-            await loRaWANInterfaceService.SendMultiCommand(byteRecords);
+            await _loRaWANInterfaceService.Value.SendMultiCommand(byteRecords);
         }
 
         private string MakeSREC(uint type, uint addr, string data)
@@ -77,7 +85,7 @@ namespace Leapfrog.Infrastructure.Services
             var hexStr = string.Format("{0:X8}", addr) + data;
 
             // Get the bytes of the hex string
-            var bytes = firmwareLoaderUtilsService.StringToByteArray(hexStr);
+            var bytes = _firmwareLoaderUtilsService.StringToByteArray(hexStr);
 
             // Calculate checksum
             byte checksum = (byte)(bytes.Length + 1);

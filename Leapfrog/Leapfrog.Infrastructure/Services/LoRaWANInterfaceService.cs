@@ -4,17 +4,39 @@ using Leapfrog.Core.Enums.StatusEnums;
 
 namespace Leapfrog.Infrastructure.Services
 {
-    public class LoRaWANInterfaceService(ILoRaWANService loRaWANService, IRadioConfigService radioConfigService, ILightConfigService lightConfigService , IStatusService statusService) : ILoRaWANInterfaceService
+    public class LoRaWANInterfaceService : ILoRaWANInterfaceService
     {
+        private readonly ILoaderModelService _loaderModelService;
+        private readonly ISecurityModelService _securityModelService;
+        private readonly ILoRaWANService _loRaWANService;
+        private readonly IRadioConfigService _radioConfigService;
+        private readonly ILightConfigService _lightConfigService;
+        private readonly IStatusService _statusService;
+
+        public LoRaWANInterfaceService(ILoaderModelService loaderModelService, ISecurityModelService securityModelService, ILoRaWANService loRaWANService, IRadioConfigService radioConfigService, ILightConfigService lightConfigService, IStatusService statusService)
+        {
+           _loaderModelService=loaderModelService;
+           _securityModelService=securityModelService;
+           _loRaWANService=loRaWANService;
+           _radioConfigService=radioConfigService;
+           _lightConfigService=lightConfigService;
+           _statusService=statusService;
+
+            // Subscribe to the MQTT message event
+            _loRaWANService.OnMessageReceived += (data) =>
+            {
+                ParseIncomingData(data);
+            };
+        }
         public async Task RefreshAllConfigurations()
         {
             List<byte[]> commands =
             [
                 // Add commands for each configuration retrieval
-                lightConfigService.GetDownloadCommand(),
-                //SecurityModel.GetSecurityInfoCommand(),
-                radioConfigService.GetRadioConfigCommand(),
-                //LoaderModel.GetDeviceVersionCommand()
+                _lightConfigService.GetDownloadCommand(),
+                await _securityModelService.GetSecurityInfoCommand(),
+                _radioConfigService.GetRadioConfigCommand(),
+                _loaderModelService.GetDeviceVersionCommand()
             ];
 
             foreach (var command in commands)
@@ -72,7 +94,7 @@ namespace Leapfrog.Infrastructure.Services
         {
             try
             {
-                await loRaWANService.SendMessageAsync(cmd);
+                await _loRaWANService.SendMessageAsync(cmd);
                 return true;
             }
             catch (Exception e)
@@ -88,38 +110,38 @@ namespace Leapfrog.Infrastructure.Services
             // Is this a light config packet?
             if (data[0] == 'A')
             {
-                lightConfigService.ParsePacket(data);
+                _lightConfigService.ParsePacket(data);
                 return;
             }
 
             // Is this a security packet?
             if (data[0] == 'X')
             {
-                //SecurityModel.ParsePacket(data);
+                _securityModelService.ParsePacket(data);
                 return;
             }
 
             // Is this a radio config packet?
             if (data[0] == 'R')
             {
-                //RadioConfigModel.ParsePacket(data);
+                _radioConfigService.ParsePacket(data);
                 return;
             }
 
             if (data[0] == 'V')
             {
-                //LoaderModel.ParsePacket(data);
+                _loaderModelService.ParsePacket(data);
                 return;
             }
 
             switch ((SerialCommandType)data[2])
             {
                 case SerialCommandType.SerialConfigGet:
-                    lightConfigService.ParsePacket(data);
+                    _lightConfigService.ParsePacket(data);
                     break;
 
                 default:
-                    statusService.SetStatus(StatusType.ERROR, "Request Failed: Got bad command");
+                    _statusService.SetStatus(StatusType.ERROR, "Request Failed: Got bad command");
                     break;
             }
         }

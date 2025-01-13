@@ -36,6 +36,8 @@ namespace Leapfrog.Core.Entities
         public int DefaultFreq { get; set; } = (int)(START_FREQ * FREQUENCY_MULTIPLIER);
         public ConfigStatus FreqStatus { get; set; } = ConfigStatus.VALID;
         public int FreqDevice { get; set; } = NEVER_SET;
+
+
         public string FreqDeviceString => FreqDevice == NEVER_SET ? "Unknown" : FreqDevice.ToString();
         public readonly string MinFreq = START_FREQ.ToString();
         public readonly string MaxFreq = END_FREQ.ToString();
@@ -77,7 +79,27 @@ namespace Leapfrog.Core.Entities
 
         public ObservableCollection<string> IqInversions { get; set; } = new ObservableCollection<string>();
         public IqInversionSetting IqInversionIndex { get; set; }
-        public int IqInversionIndexValue { get; set; }
+        public int IqInversionIndexValue
+        { 
+            get { return (int)_iqInversionIndex; }
+            set
+            {
+                if (value < 0)
+                {
+                    _iqInversionIndex = 0;
+                }
+                else if (value >= IqInversions.Count)
+                {
+                    _iqInversionIndex = (IqInversionSetting)IqInversions.Count - 1;
+                }
+                else
+                {
+                    _iqInversionIndex = (IqInversionSetting)value;
+                }
+            }
+        }
+        private IqInversionSetting _iqInversionIndex;
+
         public IqInversionSetting DefaultIqInversionIndex { get; set; } = IqInversionSetting.NOT_INVERTED;
         public int IqInversionDevice { get; set; } = NEVER_SET;
         public string IqInversionDeviceString => IqInversionDevice == NEVER_SET ? "Unknown" : IqInversions.ElementAtOrDefault(IqInversionDevice) ?? "";

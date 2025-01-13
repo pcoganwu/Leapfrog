@@ -1,15 +1,24 @@
 ﻿using Leapfrog.Application.Interfaces;
 using Leapfrog.Core.Entities;
-using System.Net.NetworkInformation;
 using System.Text;
 
 namespace Leapfrog.Infrastructure.Services
 {
-    public class FirmwareLoaderGenService(ILoRaWANInterfaceService loRaWANInterfaceService, IStatusService statusService, IFirmwareLoaderUtilsService firmwareLoaderUtilsService) : IFirmwareLoaderGenService
+    public class FirmwareLoaderGenService : IFirmwareLoaderGenService
     {
         private readonly List<string> Code = [];
         private int LineIndex;
         private readonly List<HexRecord> LibRecords = [];
+        private readonly Lazy<ILoRaWANInterfaceService> _loRaWANInterfaceService;
+        private readonly IStatusService _statusService;
+        private readonly IFirmwareLoaderUtilsService _firmwareLoaderUtilsService;
+
+        public FirmwareLoaderGenService(Lazy<ILoRaWANInterfaceService> loRaWANInterfaceService, IStatusService statusService, IFirmwareLoaderUtilsService firmwareLoaderUtilsService)
+        {
+            _loRaWANInterfaceService=loRaWANInterfaceService;
+            _statusService=statusService;
+            _firmwareLoaderUtilsService=firmwareLoaderUtilsService;
+        }
 
         public async Task GenerateCodeFile(List<HexRecord> records, uint startAddr, uint endAddr, string version, string name, bool printFinalRecords)
         {
@@ -39,7 +48,7 @@ namespace Leapfrog.Infrastructure.Services
                 var hexStr = string.Format("{0:X8}", record.address) + record.bytes;
 
                 // Get the bytes of the hex string
-                var bytes = firmwareLoaderUtilsService.StringToByteArray(hexStr);
+                var bytes = _firmwareLoaderUtilsService.StringToByteArray(hexStr);
 
                 // Add the line, remove 4 bytes for the address at the beginning
                 AddLine(3, LibRecords.Count + 2, bytes.Length - 4, record.address, bytes);
@@ -67,13 +76,13 @@ namespace Leapfrog.Infrastructure.Services
             // Write all the strings to the code file
             File.WriteAllLines($"FirmwareV{name}.cs", codeStrings);
 
-            statusService.SetStatus($"Successfully generated file: FirmwareV{name}.cs");
+            _statusService.SetStatus($"Successfully generated file: FirmwareV{name}.cs");
 
             // Convert HexRecord list to List<byte[]>
-            List<byte[]> byteRecords = records.Select(record => firmwareLoaderUtilsService.StringToByteArray(record.bytes)).ToList();
+            List<byte[]> byteRecords = records.Select(record => _firmwareLoaderUtilsService.StringToByteArray(record.bytes)).ToList();
 
             // Send records using LoRaWAN
-            await loRaWANInterfaceService.SendMultiCommand(byteRecords);
+            await _loRaWANInterfaceService.Value.SendMultiCommand(byteRecords);
         }
 
         private void CreateHeader(string version, string name)

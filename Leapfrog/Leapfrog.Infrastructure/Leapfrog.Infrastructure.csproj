@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MQTTnet.Extensions.ManagedClient" Version="4.3.7.1207" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Leapfrog.Application\Leapfrog.Application.csproj" />
   </ItemGroup>
 

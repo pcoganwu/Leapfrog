@@ -6,8 +6,17 @@ using Leapfrog.Core.Enums.StatusEnums;
 
 namespace Leapfrog.Infrastructure.Services
 {
-    public class RadioConfigService(ILoRaWANInterfaceService loRaWANInterfaceService, IStatusService statusService) : IRadioConfigService
+    public class RadioConfigService : IRadioConfigService
     {
+        private readonly Lazy<ILoRaWANInterfaceService> _loRaWANInterfaceService;
+        private readonly IStatusService _statusService;
+
+        public RadioConfigService(Lazy<ILoRaWANInterfaceService> loRaWANInterfaceService, IStatusService statusService)
+        {
+            _loRaWANInterfaceService=loRaWANInterfaceService;
+            _statusService=statusService;
+        }
+
         public RadioConfigModel RadioConfig { get; set; } = new();
 
         public byte[] GetRadioConfigCommand()
@@ -79,7 +88,7 @@ namespace Leapfrog.Infrastructure.Services
             double freq = RadioConfig.FreqDevice / RadioConfigModel.FREQUENCY_MULTIPLIER - RadioConfigModel.START_FREQ;
             RadioConfig.ChannelIndexDevice = freq % incr != 0 ? RadioConfig.Channels.Count - 1 : (int)(freq / incr);
 
-            statusService.SetStatus(StringConstants.RETRIEVE_CONFIG_MESSAGE);
+            _statusService.SetStatus(StringConstants.RETRIEVE_CONFIG_MESSAGE);
         }
 
         public async Task<bool> SetDefaultRadioConfig()
@@ -91,7 +100,7 @@ namespace Leapfrog.Infrastructure.Services
         {
             if (RadioConfig.FreqStatus == ConfigStatus.INVALID || RadioConfig.PreambleLenStatus == ConfigStatus.INVALID || RadioConfig.TxPowerStatus == ConfigStatus.INVALID || RadioConfig.TxTimeoutStatus == ConfigStatus.INVALID)
             {
-                statusService.SetStatus(StatusType.ERROR, "Request Failed: Please correct values highlighted in red");
+                _statusService.SetStatus(StatusType.ERROR, "Request Failed: Please correct values highlighted in red");
                 return;
             }
 
@@ -204,9 +213,9 @@ namespace Leapfrog.Infrastructure.Services
                 cmd.AddRange(BitConverter.GetBytes(value));
             }
 
-            statusService.SetStatus("Radio config updated on device");
+            _statusService.SetStatus("Radio config updated on device");
 
-            return await loRaWANInterfaceService.SendRawCommand(cmd.ToArray());
+            return await _loRaWANInterfaceService.Value.SendRawCommand(cmd.ToArray());
         }
     }
 }

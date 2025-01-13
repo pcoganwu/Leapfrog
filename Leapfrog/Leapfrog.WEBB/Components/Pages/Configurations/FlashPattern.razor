@@ -1,0 +1,48 @@
+﻿@page "/flash-pattern"
+@inject FlashPatternViewModel FlashPatternVM
+
+<div class="container">
+    <div class="d-flex justify-content-end my-3">
+        <button class="btn btn-primary me-2" @onclick="UploadFlashPattern">Flash Lights</button>
+        <button class="btn btn-primary me-2" @onclick="UploadAll">Upload All (🠝)</button>
+        <button class="btn btn-primary me-2" @onclick="DownloadAll">Download All (🠟)</button>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-2">
+            <label>Flash Pattern:</label>
+        </div>
+        <div class="col-3">
+            <select class="form-select">
+                <option value="0">None</option>
+                <option value="1">MUTCD</option>
+                <option value="2">Wig Wag</option>
+                <option value="3">Custom</option>
+            </select>
+        </div>
+        <div class="col-1">
+            <button class="btn btn-success">🠝</button>
+        </div>
+        <div class="col-1">
+            <button class="btn btn-success">🠟</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void UploadFlashPattern()
+    {
+        FlashPatternVM.UploadFlashPatternCommand.Execute(null);
+    }
+
+    private void UploadAll()
+    {
+        FlashPatternVM.UploadAllSettingsCommand.Execute(null);
+    }
+
+    private void DownloadAll()
+    {
+        FlashPatternVM.DownloadAllSettingsCommand.Execute(null);
+    }
+
+}

@@ -7,9 +7,20 @@ using ConfigIndex = Leapfrog.Core.Enums.LightConfigEnums.ConfigIndex;
 
 namespace Leapfrog.Infrastructure.Services
 {
-    public class LightConfigService(ILoRaWANInterfaceService loRaWANInterfaceService, IStatusService statusService) : ILightConfigService
+    public class LightConfigService : ILightConfigService
     {
+
+
+        private readonly Lazy<ILoRaWANInterfaceService> _loRaWANInterfaceService;
+        private readonly IStatusService _statusService;
+
+        public LightConfigService(Lazy<ILoRaWANInterfaceService> loRaWANInterfaceService, IStatusService statusService)
+        {
+            _loRaWANInterfaceService=loRaWANInterfaceService;
+            _statusService=statusService;
+        }
         private const byte CONFIG_SET_LENGTH = 17;
+
         public LightConfigModel LightConfig { get; set; } = new();
 
         public byte[] GetDownloadCommand()
@@ -41,7 +52,7 @@ namespace Leapfrog.Infrastructure.Services
 
             LightConfig.FlashPatternDevice = data[(int)ConfigIndex.FLASH_PATTERN].ToString();
 
-            statusService.SetStatus("Configuration retrieved successfully.");
+            _statusService.SetStatus("Configuration retrieved successfully.");
         }
 
         public void Init()
@@ -60,11 +71,11 @@ namespace Leapfrog.Infrastructure.Services
                 case ConfigCommandType.CONFIG_SET:
                     if (data[3] == 0x00)
                     {
-                        statusService.SetStatus("Light config updated on device");
+                        _statusService.SetStatus("Light config updated on device");
                     }
                     else
                     {
-                        statusService.SetStatus(StatusType.ERROR, "Light config failed to update on device");
+                        _statusService.SetStatus(StatusType.ERROR, "Light config failed to update on device");
                     }
                     break;
                 default:
@@ -118,7 +129,7 @@ namespace Leapfrog.Infrastructure.Services
         {
             if (LightConfig.FlashLenStatus == ConfigStatus.INVALID || LightConfig.FlashDelayStatus == ConfigStatus.INVALID)
             {
-                statusService.SetStatus(StatusType.ERROR, "Request Failed: Please correct values highlighted in red");
+                _statusService.SetStatus(StatusType.ERROR, "Request Failed: Please correct values highlighted in red");
                 return;
             }
 
@@ -150,9 +161,9 @@ namespace Leapfrog.Infrastructure.Services
 
             byte[] cmdBytes = cmd.ToArray();
 
-            statusService.SetStatus("Sending request for Light Config. Waiting for response...");
+            _statusService.SetStatus("Sending request for Light Config. Waiting for response...");
 
-            return await loRaWANInterfaceService.SendRawCommand(cmdBytes);
+            return await _loRaWANInterfaceService.Value.SendRawCommand(cmdBytes);
         }
 
         public async Task<bool> UploadDefault()
@@ -163,7 +174,7 @@ namespace Leapfrog.Infrastructure.Services
             }
             catch
             {
-                statusService.SetStatus(StatusType.ERROR, "Request Failed: Default values are corrupt");
+                _statusService.SetStatus(StatusType.ERROR, "Request Failed: Default values are corrupt");
                 return false;
             }
         }

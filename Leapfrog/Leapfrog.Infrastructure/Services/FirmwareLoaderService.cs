@@ -3,16 +3,32 @@ using Leapfrog.Core.Entities;
 
 namespace Leapfrog.Infrastructure.Services
 {
-    public class FirmwareLoaderService(ILoRaWANInterfaceService loRaWANInterfaceService, 
-        IFirmwareLoaderUtilsService firmwareLoaderUtilsService, 
-        IStatusService statusService, IFirmwareLoaderSRecService 
-        firmwareLoaderSRecService, IFirmwareLoaderGenService firmwareLoaderGenService) : IFirmwareLoaderService
+    public class FirmwareLoaderService : IFirmwareLoaderService
     {
         // Debug prints
         private bool printOriginalRecords = false;
         private bool printContiguousRecords = false;
         private bool printOrderedRecords = false;
         private bool printFinalRecords = false;
+
+
+        private readonly Lazy<ILoRaWANInterfaceService> _loRaWANInterfaceService;
+        private readonly IFirmwareLoaderUtilsService _firmwareLoaderUtilsService;
+        private readonly IStatusService _statusService;
+        private readonly IFirmwareLoaderSRecService _firmwareLoaderSRecService;
+        private readonly IFirmwareLoaderGenService _firmwareLoaderGenService;
+
+        public FirmwareLoaderService(Lazy<ILoRaWANInterfaceService> loRaWANInterfaceService,
+        IFirmwareLoaderUtilsService firmwareLoaderUtilsService,
+        IStatusService statusService, IFirmwareLoaderSRecService
+        firmwareLoaderSRecService, IFirmwareLoaderGenService firmwareLoaderGenService)
+        {
+            this._loRaWANInterfaceService=loRaWANInterfaceService;
+            this._firmwareLoaderUtilsService=firmwareLoaderUtilsService;
+            this._statusService=statusService;
+            this._firmwareLoaderSRecService=firmwareLoaderSRecService;
+            this._firmwareLoaderGenService=firmwareLoaderGenService;
+        }
 
         // Program constants
         const uint RECORD_BYTES = 200;
@@ -26,7 +42,7 @@ namespace Leapfrog.Infrastructure.Services
                 string filename = string.Empty; // Upload file
                 if (!File.Exists(filename))
                 {
-                    statusService.SetStatus("File doesn't exist, firmware gen aborted");
+                    _statusService.SetStatus("File doesn't exist, firmware gen aborted");
                     return;
                 }
 
@@ -34,27 +50,27 @@ namespace Leapfrog.Infrastructure.Services
 
                 if (records == null)
                 {
-                    statusService.SetStatus("File is not an SRec file, firmware gen aborted");
+                    _statusService.SetStatus("File is not an SRec file, firmware gen aborted");
                     return;
                 }
 
                 records = MakeContiguousRecords(records);
                 records = MakeOrderedRecords(records);
 
-                await firmwareLoaderSRecService.GenerateSRecFile(records, LIBRARY_ADDR_START, LIBRARY_ADDR_END, printFinalRecords);
+                await _firmwareLoaderSRecService.GenerateSRecFile(records, LIBRARY_ADDR_START, LIBRARY_ADDR_END, printFinalRecords);
 
                 string version = $"{versionMaj}.{versionMin}.{versionRev}";
                 string name = $"{versionMaj}_{versionMin}_{versionRev}";
 
-                await firmwareLoaderGenService.GenerateCodeFile(records, LIBRARY_ADDR_START, LIBRARY_ADDR_END, version, name, printFinalRecords);
+                await _firmwareLoaderGenService.GenerateCodeFile(records, LIBRARY_ADDR_START, LIBRARY_ADDR_END, version, name, printFinalRecords);
 
-                List<byte[]> byteRecords = records.Select(record => firmwareLoaderUtilsService.StringToByteArray(record.bytes)).ToList();
+                List<byte[]> byteRecords = records.Select(record => _firmwareLoaderUtilsService.StringToByteArray(record.bytes)).ToList();
 
-                await loRaWANInterfaceService.SendMultiCommand(byteRecords);
+                await _loRaWANInterfaceService.Value.SendMultiCommand(byteRecords);
             }
             catch
             {
-                statusService.SetStatus("File can't be loaded, the file maybe corrupted, firmware load aborted");
+                _statusService.SetStatus("File can't be loaded, the file maybe corrupted, firmware load aborted");
                 return;
             }
         }
